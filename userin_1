@@ -1,0 +1,58 @@
+import spacy
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.pipeline import make_pipeline
+
+# Load the spaCy model
+nlp = spacy.load("en_core_web_sm")
+
+# Sample training data: tuples of (text, label)
+train_data = [
+    ("I need help quitting smoking", "help"),
+    ("Can you provide guidance on smoking cessation?", "help"),
+    ("I smoked 20 cigarettes today", "status_update"),
+    ("My health has been poor lately", "status_update"),
+    ("What can I do to stop smoking?", "help"),
+    ("I feel great today, didn't smoke at all", "status_update")
+]
+
+# Vectorizer and classifier pipeline
+model = make_pipeline(CountVectorizer(), MultinomialNB())
+
+# Train the classifier
+texts, labels = zip(*train_data)
+model.fit(texts, labels)
+
+def predict_intent(text):
+    """Predict the user's intent based on the input text."""
+    prediction = model.predict([text])[0]
+    return prediction
+
+def respond_to_user(text):
+    """Generate a response to the user based on their input text."""
+    intent = predict_intent(text)
+    
+    if intent == 'help':
+        return "It sounds like you're looking for help with quitting smoking. We have several resources and tips that can assist you."
+    elif intent == 'status_update':
+        doc = nlp(text)
+        # Look for numbers and related words to get insights
+        health_mentions = [ent.text for ent in doc.ents if ent.label_ == "CARDINAL"]
+        smoking_mentions = [tok for tok in doc if tok.lemma_ == "smoke"]
+        if health_mentions and smoking_mentions:
+            return f"I see you mentioned smoking {', '.join(health_mentions)} times today. Let's see what we can do to reduce that."
+        return "Thank you for updating your status. It’s great to hear about your progress!"
+    else:
+        return "I'm sorry, I didn't understand that. Could you tell me more?"
+
+# Example user inputs
+user_messages = [
+    "I need some help with smoking",
+    "Yesterday I smoked only one cigarette",
+    "How do I quit smoking?"
+]
+
+# Responses
+responses = [respond_to_user(msg) for msg in user_messages]
+for response in responses:
+    print(response)
